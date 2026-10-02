@@ -17,6 +17,11 @@ Layer 1: memory-loop       ← the core loop (retain → recall → repeat)
 Each lesson has its own dated note in `notes/` and a runnable file in `src/`.
 Each lesson adds exactly one idea.
 
+**Ground rule for teaching:** every claim about how Hindsight itself works
+(API names, retrieval paths, consolidation behavior) is verified against the
+actual upstream source (`~/workspace/upstream/hindsight/`) before the lesson
+is written — never from memory. If the source is ambiguous, the lesson says so.
+
 ---
 
 ## Layer 1: memory-loop — retain → recall → repeat
