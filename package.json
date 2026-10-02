@@ -1,0 +1,1 @@
+{"name":"hindsight-learning","private":true,"scripts":{"lesson1":"bun src/lesson1.ts"},"type":"module"}
