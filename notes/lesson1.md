@@ -9,14 +9,14 @@ functions:
 - `retain(content)` — keep something
 - `recall(query)` — find the relevant things again
 
-Even a Python list of strings plus substring matching is a memory system.
+Even a TypeScript array of strings plus substring matching is a memory system.
 It's dumb, but it's complete: it has a write path and a read path, and you
 can already see the shape of every memory system that comes after —
 Hindsight included.
 
 ## What we built
 
-`src/lesson01.py`: a `Memory` class. `retain()` appends a fact (with a
+`src/lesson1.ts`: a `Memory` class. `retain()` appends a fact (with a
 timestamp). `recall()` scores stored facts by how many query words appear in
 them and returns the best match. The demo stores three facts about Alice and
 asks "what does Alice do?"
@@ -37,12 +37,12 @@ whole motivation for lesson 2 onward. Every retrieval strategy Hindsight runs
 ## What's next
 
 Lesson 2: score by *statistical* meaning (TF-IDF + cosine) instead of raw
-word overlap. First ranked retrieval, still stdlib-only.
+word overlap. First ranked retrieval, still dependency-free.
 
 ## Try it
 
 ```
-python3 src/lesson01.py
+bun run lesson1
 ```
 
 Change the facts, change the queries, watch where recall fails. The failures
