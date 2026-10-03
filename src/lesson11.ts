@@ -161,6 +161,7 @@ async function writeObservation(facts: Fact[]): Promise<string> {
 export class Memory {
   private facts: Fact[] = [];
   private observations: Observation[] = [];
+  private invalidated: Fact[] = []; // like Hindsight's invalidated_memory_units — the row stops existing, but the record remains
 
   /** Read access for upper layers (e.g. lesson 12's reflect). */
   getFacts(): Fact[] {
@@ -169,7 +170,53 @@ export class Memory {
   getObservations(): Observation[] {
     return this.observations;
   }
+  getInvalidated(): Fact[] {
+    return this.invalidated;
+  }
+  /** "Is it live?" — the only question the cascade asks. Invalidated,
+   *  deleted, and swept all present identically: an id with no live row. */
+  isLive(id: number): boolean {
+    return this.facts.some((f) => f.id === id);
+  }
   private seen = new Set<string>();
+
+  /**
+   * Forget a fact. The row stops existing (moved to invalidated), and the
+   * cascade updates everything built on it: observations lose proof and
+   * quotes; observations with no grounding left are swept. History is kept —
+   * it's the audit trail of what was believed, not a live claim.
+   */
+  forget(id: number): { swept: number[]; weakened: number[] } {
+    const idx = this.facts.findIndex((f) => f.id === id);
+    if (idx === -1) throw new Error(`fact #${id} not found (already forgotten?)`);
+    const [f] = this.facts.splice(idx, 1);
+    this.invalidated.push(f);
+    this.seen.delete(canonText(f.content)); // re-ingest under a fresh id stays possible
+    const swept: number[] = [];
+    const weakened = new Set<number>();
+    for (const o of this.observations) {
+      const si = o.sourceIds.indexOf(id);
+      if (si !== -1) {
+        o.sourceIds.splice(si, 1);
+        o.quotes.splice(si, 1); // quotes and sourceIds are parallel arrays
+        o.proofCount = o.sourceIds.length;
+        weakened.add(o.id);
+      }
+      const ci = o.counterIds.indexOf(id);
+      if (ci !== -1) {
+        o.counterIds.splice(ci, 1);
+        o.counterQuotes.splice(ci, 1);
+        weakened.add(o.id);
+      }
+      if (o.sourceIds.length === 0 && o.counterIds.length === 0) {
+        swept.push(o.id);
+      } else {
+        o.rev += 1; // the belief changed
+      }
+    }
+    this.observations = this.observations.filter((o) => !swept.includes(o.id));
+    return { swept, weakened: [...weakened].filter((w) => !swept.includes(w)) };
+  }
 
   async retain(input: string, at: Date = new Date()): Promise<void> {
     for (const piece of splitFacts(input)) {
