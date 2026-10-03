@@ -84,5 +84,6 @@ banks stay isolated at the storage layer.
 
 ## Status
 
-All 20 lessons written, runnable, and pushed. Say "next lesson" is retired —
-the course is complete. Revisit any lesson with `bun run lesson<N>`.
+All 26 lessons written, runnable, and pushed (20 + 6 gap-fillers: directives,
+mission, documents, expand, causal links, memory defense). Revisit any lesson
+with `bun run lesson<N>`.
