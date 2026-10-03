@@ -84,6 +84,5 @@ banks stay isolated at the storage layer.
 
 ## Status
 
-Lesson 1 written and runnable. Lessons 2–20 unlock as we go — say "next
-lesson" when you're done with the current one. This is a personal study
-project, not a library — the value is in the notes and the progression.
+All 20 lessons written, runnable, and pushed. Say "next lesson" is retired —
+the course is complete. Revisit any lesson with `bun run lesson<N>`.
