@@ -46,6 +46,7 @@ export interface Observation {
   quotes: string[]; // exact supporting quotes
   proofCount: number; // = sourceIds.length (like Hindsight's proof_count)
   counterQuotes: string[]; // exact contradicting quotes — kept, not hidden
+  counterIds: number[]; // ids of contradicting facts (absorbed, but not proof)
   history: { text: string; at: Date; reason: string }[]; // pre-update snapshots
   rev: number; // revision counter — bumped on every refinement
   entities: string[];
@@ -208,6 +209,7 @@ export class Memory {
           quotes: group.map((f) => f.content),
           proofCount: group.length,
           counterQuotes: [],
+          counterIds: [],
           history: [],
           rev: 1, // bumped on every refinement — lets upper layers (lesson 12) see that the belief changed
           entities: [...new Set(group.flatMap((f) => f.entities))],
@@ -249,6 +251,7 @@ export class Memory {
       if (verdict === "contradicts") {
         obs.history.push({ text: obs.text, at: new Date(), reason: `contradicted by fact #${id}` });
         obs.counterQuotes.push(f.content);
+        obs.counterIds.push(f.id);
         obs.text = client ? revised : `${obs.text} [CONTESTED by: "${f.content}"]`;
         handled.add(id);
         console.log(`  WEAKEN obs #${obs.id}: fact #${id} contradicts`);
