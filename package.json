@@ -1,1 +1,13 @@
-{"name":"hindsight-learning","private":true,"scripts":{"lesson1":"bun src/lesson1.ts","lesson2":"bun src/lesson2.ts"},"type":"module"}
+{
+  "name": "hindsight-learning",
+  "private": true,
+  "scripts": {
+    "lesson1": "bun src/lesson1.ts",
+    "lesson2": "bun src/lesson2.ts",
+    "lesson3": "bun src/lesson3.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "@xenova/transformers": "2.17.2"
+  }
+}
