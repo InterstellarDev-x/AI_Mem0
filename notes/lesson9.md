@@ -18,8 +18,9 @@ index maintained as we go. Lookup by entity is then trivial: the read path
 stays dumb because the write path did the work.
 
 The extractor is pluggable: rules by default (capitalized phrases, no
-coreference), `gpt-4o-mini` when `OPENAI_API_KEY` is set — and it falls back
-to rules on any API failure, saying so.
+coreference), `gpt-4o-mini` via the official `openai` SDK when
+`OPENAI_API_KEY` is set — and it falls back to rules on any API failure,
+saying so.
 
 ## What it shows
 

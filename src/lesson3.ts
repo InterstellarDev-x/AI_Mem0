@@ -14,7 +14,8 @@
 // embeddings, no API key. (Hindsight's default is OpenAI text-embedding-3-small
 // over HTTP; a local sentence-transformers model is its supported offline
 // option. Same idea, different model.) First run downloads the model once
-// (~90MB) and caches it.
+// (~90MB) and caches it. Set OPENAI_API_KEY to use text-embedding-3-small
+// via the official SDK instead — the demo prints which embedder ran.
 //
 // Run it:
 //
@@ -22,11 +23,12 @@
 //     bun run lesson3
 
 import { pipeline } from "@xenova/transformers";
+import OpenAI from "openai";
 
 interface Fact {
   content: string;
   at: string;
-  vector: number[]; // 384-dim, L2-normalized
+  vector: number[]; // L2-normalized; dims depend on the embedder (see below)
 }
 
 interface Scored {
@@ -36,15 +38,39 @@ interface Scored {
 
 type Extractor = Awaited<ReturnType<typeof pipeline>>;
 let extractor: Extractor | null = null;
+let openai: OpenAI | null = null;
 
-/** Embed text to a normalized dense vector. Model loads once, then cached. */
+/**
+ * Embed text to a normalized dense vector. Two backends:
+ * - OPENAI_API_KEY set → text-embedding-3-small via the official SDK
+ *   (Hindsight's default; 1536 dims, L2-normalized here).
+ * - otherwise → all-MiniLM-L6-v2 locally via Transformers.js (384 dims).
+ * The lesson is identical either way; the demo prints which one ran.
+ */
 async function embed(text: string): Promise<number[]> {
+  if (process.env.OPENAI_API_KEY) {
+    openai ??= new OpenAI(); // reads OPENAI_API_KEY from env
+    const res = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
+      encoding_format: "float",
+    });
+    const v = res.data[0]!.embedding;
+    const n = Math.hypot(...v);
+    return v.map((x) => x / n);
+  }
   extractor ??= (await pipeline(
     "feature-extraction",
     "Xenova/all-MiniLM-L6-v2",
   )) as Extractor;
   const out = await extractor(text, { pooling: "mean", normalize: true });
   return Array.from(out.data as Float32Array);
+}
+
+function embedderName(): string {
+  return process.env.OPENAI_API_KEY
+    ? "openai text-embedding-3-small (1536 dims)"
+    : "local all-MiniLM-L6-v2 (384 dims)";
 }
 
 /** Cosine similarity. Inputs are normalized, so this is just a dot product. */
@@ -77,6 +103,7 @@ class Memory {
 }
 
 async function demo(): Promise<void> {
+  console.log(`embedder: ${embedderName()}\n`);
   const m = new Memory();
   for (const s of [
     "Alice works at Google as a software engineer",

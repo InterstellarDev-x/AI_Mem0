@@ -81,42 +81,35 @@ const rulesExtractor: Extractor = {
     splitFacts(text).map((t) => ({ text: t, entities: ruleEntities(t) })),
 };
 
+import OpenAI from "openai";
+
 /** LLM extractor — only used when OPENAI_API_KEY is set. Falls back to rules
  *  on any failure, and says so. */
 async function llmExtractor(): Promise<Extractor | null> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return null;
+  if (!process.env.OPENAI_API_KEY) return null;
+  const client = new OpenAI(); // reads OPENAI_API_KEY from env
   return {
     name: "gpt-4o-mini (coreference + canonical names)",
     extract: async (text: string, ref: Date): Promise<Extracted[]> => {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "Split the input into atomic facts. For each fact return its text, the entities involved using ONE canonical name per entity (resolve pronouns like 'she'/'her' and aliases to the canonical name), and when it happened. " +
-                'Return JSON: {"facts": [{"text": "...", "entities": ["alice", "google"], "when": "2026-06-01 or null"}]}.',
-            },
-            {
-              role: "user",
-              content: `Reference date: ${ref.toISOString().slice(0, 10)}. Text: ${text}`,
-            },
-          ],
-        }),
+      const res = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Split the input into atomic facts. For each fact return its text, the entities involved using ONE canonical name per entity (resolve pronouns like 'she'/'her' and aliases to the canonical name), and when it happened. " +
+              'Return JSON: {"facts": [{"text": "...", "entities": ["alice", "google"], "when": "2026-06-01 or null"}]}.',
+          },
+          {
+            role: "user",
+            content: `Reference date: ${ref.toISOString().slice(0, 10)}. Text: ${text}`,
+          },
+        ],
       });
-      if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-      const data = (await res.json()) as {
-        choices: { message: { content: string } }[];
-      };
-      const parsed = JSON.parse(data.choices[0]!.message.content) as {
+      const content = res.choices[0]?.message.content;
+      if (!content) throw new Error("empty response");
+      const parsed = JSON.parse(content) as {
         facts: { text: string; entities: string[] }[];
       };
       return parsed.facts.map((f) => ({

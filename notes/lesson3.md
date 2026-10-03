@@ -24,6 +24,11 @@ the upstream source. Same idea, different model.) First run downloads the
 model once (~90MB, cached afterwards). New dependency in `package.json`:
 `@xenova/transformers`.
 
+Set `OPENAI_API_KEY` and the lesson uses `text-embedding-3-small` via the
+official `openai` SDK instead (1536 dims, L2-normalized here) — the demo
+prints which embedder ran. Later lessons (5–8) stay on the local embedder
+for reproducibility; the idea they teach doesn't depend on the model.
+
 ## What it fixes
 
 Run `bun run lesson3`. Query "Alice's boss": the word "boss" appears nowhere
