@@ -72,7 +72,11 @@ function canonFactText(t: string): string {
 
 interface Extractor {
   name: string;
-  extract(text: string, ref: Date): Promise<Extracted[]>;
+  extract(
+    text: string,
+    ref: Date,
+    context: { entities: string[] },
+  ): Promise<Extracted[]>;
 }
 
 const rulesExtractor: Extractor = {
@@ -83,6 +87,10 @@ const rulesExtractor: Extractor = {
 
 import OpenAI from "openai";
 
+/** Chat model for the LLM extractor. gpt-6-luna is a reasoning model, so it
+ *  takes max_completion_tokens (not max_tokens). Override via env. */
+const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-6-luna";
+
 /** LLM extractor — only used when OPENAI_API_KEY is set. Falls back to rules
  *  on any failure, and says so. */
 async function llmExtractor(): Promise<Extractor | null> {
@@ -91,16 +99,26 @@ async function llmExtractor(): Promise<Extractor | null> {
   // for proxies/gateways.
   const client = new OpenAI({ baseURL: process.env.OPENAI_API_BASE });
   return {
-    name: "gpt-4o-mini (coreference + canonical names)",
-    extract: async (text: string, ref: Date): Promise<Extracted[]> => {
+    name: `${CHAT_MODEL} (coreference + canonical names)`,
+    extract: async (
+      text: string,
+      ref: Date,
+      context: { entities: string[] },
+    ): Promise<Extracted[]> => {
+      const known =
+        context.entities.length > 0
+          ? `Already known entities: ${context.entities.join(", ")}. `
+          : "";
       const res = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: CHAT_MODEL,
         response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
             content:
-              "Split the input into atomic facts. For each fact return its text, the entities involved using ONE canonical name per entity (resolve pronouns like 'she'/'her' and aliases to the canonical name), and when it happened. " +
+              "Split the input into atomic facts. For each fact return its text, the entities involved using ONE canonical name per entity, and when it happened. " +
+              known +
+              "When a pronoun (she/her/he/his/they) or alias clearly refers to a known entity, use that canonical name; otherwise use a descriptive name like 'unidentified woman'. " +
               'Return JSON: {"facts": [{"text": "...", "entities": ["alice", "google"], "when": "2026-06-01 or null"}]}.',
           },
           {
@@ -131,14 +149,15 @@ class Memory {
 
   /** The write pipeline: split → extract → canonicalize → dedupe → store. */
   async retain(input: string, at: Date = new Date()): Promise<void> {
+    const context = { entities: [...this.entityIndex.keys()] };
     let items: Extracted[];
     try {
-      items = await this.extractor.extract(input, at);
+      items = await this.extractor.extract(input, at, context);
     } catch (e) {
       console.log(
         `  [extractor failed (${(e as Error).message}) — falling back to rules]`,
       );
-      items = await rulesExtractor.extract(input, at);
+      items = await rulesExtractor.extract(input, at, context);
     }
     for (const item of items) {
       const norm = canonFactText(item.text);

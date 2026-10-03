@@ -18,10 +18,14 @@ index maintained as we go. Lookup by entity is then trivial: the read path
 stays dumb because the write path did the work.
 
 The extractor is pluggable: rules by default (capitalized phrases, no
-coreference), `gpt-4o-mini` via the official `openai` SDK when
+coreference), `gpt-6-luna` via the official `openai` SDK when
 `OPENAI_API_KEY` is set (`OPENAI_API_BASE` overrides the endpoint for
-proxies/gateways) — and it falls back to rules on any API failure,
-saying so.
+proxies/gateways; `OPENAI_CHAT_MODEL` overrides the model) — and it falls
+back to rules on any API failure, saying so. The LLM gets the already-known
+entities as context, so "she" resolves to `alice` instead of becoming an
+"unidentified woman" — without that context even the LLM is honest about
+not knowing. (gpt-6-luna is a reasoning model: it takes
+`max_completion_tokens`, not `max_tokens`.)
 
 ## What it shows
 
