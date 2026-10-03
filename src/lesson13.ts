@@ -44,8 +44,17 @@ export interface Hit {
   sourceIds: number[]; // facts this hit absorbs (itself for a raw fact)
 }
 
+const STOPWORDS = new Set(
+  "what whats is are was were be been being the a an of at in on to for with as by and or but does do did done how where when who whom whose which it its this that these those i you he she we they me him her us them my your his our their".split(
+    " ",
+  ),
+);
 const toks = (t: string): string[] =>
-  t.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2);
+  t
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOPWORDS.has(w));
 
 let openai: OpenAI | null = null;
 function llm(): OpenAI | null {
