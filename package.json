@@ -4,7 +4,8 @@
   "scripts": {
     "lesson1": "bun src/lesson1.ts",
     "lesson2": "bun src/lesson2.ts",
-    "lesson3": "bun src/lesson3.ts"
+    "lesson3": "bun src/lesson3.ts",
+    "lesson4": "bun src/lesson4.ts"
   },
   "type": "module",
   "dependencies": {
