@@ -29,7 +29,7 @@ import OpenAI from "openai";
 
 const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-6-luna";
 
-interface Fact {
+export interface Fact {
   id: number;
   content: string;
   at: Date;
@@ -39,7 +39,7 @@ interface Fact {
 
 type Verdict = "supports" | "contradicts" | "extends" | "unrelated";
 
-interface Observation {
+export interface Observation {
   id: number;
   text: string;
   sourceIds: number[]; // supporting facts only
@@ -47,6 +47,7 @@ interface Observation {
   proofCount: number; // = sourceIds.length (like Hindsight's proof_count)
   counterQuotes: string[]; // exact contradicting quotes — kept, not hidden
   history: { text: string; at: Date; reason: string }[]; // pre-update snapshots
+  rev: number; // revision counter — bumped on every refinement
   entities: string[];
   scope: string;
 }
@@ -156,9 +157,17 @@ async function writeObservation(facts: Fact[]): Promise<string> {
   return res.choices[0]?.message.content?.trim() ?? "";
 }
 
-class Memory {
+export class Memory {
   private facts: Fact[] = [];
   private observations: Observation[] = [];
+
+  /** Read access for upper layers (e.g. lesson 12's reflect). */
+  getFacts(): Fact[] {
+    return this.facts;
+  }
+  getObservations(): Observation[] {
+    return this.observations;
+  }
   private seen = new Set<string>();
 
   async retain(input: string, at: Date = new Date()): Promise<void> {
@@ -200,6 +209,7 @@ class Memory {
           proofCount: group.length,
           counterQuotes: [],
           history: [],
+          rev: 1, // bumped on every refinement — lets upper layers (lesson 12) see that the belief changed
           entities: [...new Set(group.flatMap((f) => f.entities))],
           scope,
         });
@@ -258,6 +268,7 @@ class Memory {
     if (!client) {
       console.log(`    [rules can't rewrite beliefs — contradictions are flagged, not resolved]`);
     }
+    if (handled.size > 0) obs.rev += 1;
     return handled;
   }
 
