@@ -36,7 +36,7 @@ import OpenAI from "openai";
 
 const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-6-luna";
 
-interface Hit {
+export interface Hit {
   kind: "fact" | "observation";
   id: number;
   text: string;
@@ -54,7 +54,7 @@ function llm(): OpenAI | null {
   return openai;
 }
 
-class Engine {
+export class Engine {
   private mem = new Memory();
 
   /**
