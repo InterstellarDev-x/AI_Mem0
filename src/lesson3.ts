@@ -49,7 +49,9 @@ let openai: OpenAI | null = null;
  */
 async function embed(text: string): Promise<number[]> {
   if (process.env.OPENAI_API_KEY) {
-    openai ??= new OpenAI(); // reads OPENAI_API_KEY from env
+    // baseURL defaults to https://api.openai.com/v1; set OPENAI_API_BASE
+    // for proxies/gateways (e.g. a Vocareum endpoint).
+    openai ??= new OpenAI({ baseURL: process.env.OPENAI_API_BASE });
     const res = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,

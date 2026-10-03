@@ -87,7 +87,9 @@ import OpenAI from "openai";
  *  on any failure, and says so. */
 async function llmExtractor(): Promise<Extractor | null> {
   if (!process.env.OPENAI_API_KEY) return null;
-  const client = new OpenAI(); // reads OPENAI_API_KEY from env
+  // baseURL defaults to https://api.openai.com/v1; set OPENAI_API_BASE
+  // for proxies/gateways.
+  const client = new OpenAI({ baseURL: process.env.OPENAI_API_BASE });
   return {
     name: "gpt-4o-mini (coreference + canonical names)",
     extract: async (text: string, ref: Date): Promise<Extracted[]> => {
