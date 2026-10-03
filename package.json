@@ -17,7 +17,8 @@
     "lesson13": "bun src/lesson13.ts",
     "lesson14": "bun src/lesson14.ts",
     "lesson15": "bun src/lesson15.ts",
-    "lesson16": "bun src/lesson16.ts"
+    "lesson16": "bun src/lesson16.ts",
+    "lesson17": "bun src/lesson17.ts"
   },
   "type": "module",
   "dependencies": {
