@@ -33,6 +33,9 @@ write-back note surfaces. No setup command was run.
    them). A keyed run with the LLM extractor would keep them distinct —
    documented coarseness of the rules path, not a flaw in the integration.
    The demo asks questions the store answers correctly.
+3. Audit fix: `ingestGitHistory` interpolated `repoDir` into a shell string —
+   a genuine command-injection vector in a teaching repo. Now uses
+   `execFileSync` with an argv array (plus a clamped count).
 
 ## Grounded in the real Hindsight
 

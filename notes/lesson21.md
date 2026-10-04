@@ -10,12 +10,12 @@ agent checks compliance before it may call done. Learned vs. instructed.
 ## What we built
 
 `src/lesson21.ts`: `DirectiveBank` over lesson 13's Engine. Directives are
-added/removed by the user, rendered into the reflect prompt ("obey even if
-memory suggests otherwise"), and enforced by a compliance gate on the draft
-answer. Keyed, gpt-6-luna does the compliance check as Hindsight does;
-keyless, rule tests stand in. Demo: the bank *knows* the office phone number
-but the directive "Never reveal anyone's phone number" blocks it — while an
-unrelated question passes straight through.
+added/removed by the user and enforced two ways, like the real system:
+*injected* into the drafting model's system prompt (keyed; keyless, the
+printed block shows what would be injected) and *checked* by a compliance
+gate on the draft before release. Demo: the bank *knows* the office phone
+number but the directive "Never reveal anyone's phone number" blocks it —
+while an unrelated question passes straight through.
 
 ## Grounded in the real Hindsight
 

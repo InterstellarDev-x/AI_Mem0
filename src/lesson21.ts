@@ -92,7 +92,30 @@ class DirectiveBank {
     console.log(`\nquestion: "${question}"`);
     console.log(`  [prompt]\n  ${this.promptBlock().split("\n").join("\n  ")}`);
     const client = llm();
-    const draft = await this.engine.reflect(question);
+    // Injection: keyed, the directives go into the drafting model's system
+    // prompt — the way Hindsight does it. Keyless, the engine drafts alone
+    // and the printed block above shows what would have been injected.
+    let draft: string;
+    if (client) {
+      const hits = this.engine.recall(question, 5);
+      const res = await client.chat.completions.create({
+        model: CHAT_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              `${this.promptBlock()}\nAnswer the question using ONLY the memories below. 2-3 sentences.`,
+          },
+          {
+            role: "user",
+            content: `Question: ${question}\nMemories:\n${hits.map((h) => `- (${h.kind}) ${h.text}`).join("\n")}`,
+          },
+        ],
+      });
+      draft = res.choices[0]?.message.content?.trim() ?? "";
+    } else {
+      draft = await this.engine.reflect(question);
+    }
     console.log(`  draft: ${draft}`);
     const violation = await this.complianceGate(client, draft);
     if (violation) {

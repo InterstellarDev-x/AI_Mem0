@@ -28,7 +28,7 @@
 //
 //     bun run lesson19
 
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { Engine } from "./lesson13.ts";
 
 interface KnowledgePage {
@@ -53,9 +53,13 @@ class RepoMemory {
    * Hindsight does this continuously as you work; here it's one call.
    */
   async ingestGitHistory(repoDir: string, n: number = 30): Promise<void> {
-    const out = execSync(`git -C "${repoDir}" log --format='%h|%ad|%s' --date=short -n ${n}`, {
-      encoding: "utf8",
-    });
+    // No shell interpolation: argv array, so a hostile repoDir can't inject commands.
+    const limit = Math.max(1, Math.min(1000, Math.floor(n)));
+    const out = execFileSync(
+      "git",
+      ["-C", repoDir, "log", "--format=%h|%ad|%s", "--date=short", "-n", String(limit)],
+      { encoding: "utf8" },
+    );
     let count = 0;
     for (const line of out.trim().split("\n")) {
       const [hash, date, ...rest] = line.split("|");

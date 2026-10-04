@@ -38,15 +38,19 @@ const DETECTORS: Record<Detector, { test: (t: string) => string | null; redact: 
       /\b\d{3}-\d{2}-\d{4}\b/.test(t)
         ? "SSN-like pattern"
         : /\b\d{4}[- ]\d{4}[- ]\d{4}[- ]\d{4}\b/.test(t)
-          ? "card-like pattern"
-          : /sk-[A-Za-z0-9]{8,}/.test(t)
-            ? "API-key-like pattern"
-            : null,
+          ? "card-like pattern (spaced)"
+          : /(?<!\d)\d{16}(?!\d)/.test(t)
+            ? "card-like pattern (contiguous)"
+            : /(?<![A-Za-z0-9])sk-[A-Za-z0-9]{8,}/.test(t)
+              ? "API-key-like pattern"
+              : null,
     redact: (t) =>
       t
         .replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[REDACTED:SSN]")
         .replace(/\b\d{4}[- ]\d{4}[- ]\d{4}[- ]\d{4}\b/g, "[REDACTED:CARD]")
-        .replace(/sk-[A-Za-z0-9]{8,}/g, "[REDACTED:KEY]"),
+        .replace(/(?<!\d)\d{16}(?!\d)/g, "[REDACTED:CARD]")
+        // Lookbehind: without it, "task-12345678" redacts into "ta[REDACTED:KEY]".
+        .replace(/(?<![A-Za-z0-9])sk-[A-Za-z0-9]{8,}/g, "[REDACTED:KEY]"),
   },
   prompt_injection: {
     test: (t) =>

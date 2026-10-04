@@ -14,7 +14,7 @@
 // revert can rematerialize the edge.
 //
 // Our version: CausalBank over lesson 13's Engine. The rules-path extractor
-// watches for causal phrasing ("because", "led to", "caused", "so"); edges
+// watches for causal phrasing ("because", "led to", "caused"); edges
 // carry type + weight; forget() archives the edge descriptor instead of
 // dropping it. The demo: "why did the deploy fail?" walks caused_by edges
 // to "the key expired" — then forgets the cause and shows the archived edge.
@@ -34,7 +34,7 @@ interface CausalEdge {
   weight: number;
 }
 
-// Rules-path causal extraction: cause phrasing → (cause, effect) split.
+// extraction: one causal edge per matched phrasing, cause → effect
 const CAUSE_RES = [
   /(.+?)\s+because\s+(.+)/i,
   /(.+?)\s+led to\s+(.+)/i,
@@ -77,16 +77,26 @@ class CausalBank {
     return id;
   }
 
-  /** Walk caused_by edges backward from a fact: why did this happen? */
-  why(factId: number): string[] {
+  /** Walk caused_by edges backward from a memory: why did this happen?
+   *  Accepts fact or observation ids — recall returns both, from separate counters. */
+  why(memoryId: number, kind: "fact" | "observation" = "fact"): string[] {
+    const mem = (
+      this.engine as unknown as {
+        mem: { getObservations(): { id: number; sourceIds: number[] }[] };
+      }
+    ).mem;
+    const factId =
+      kind === "observation"
+        ? mem.getObservations().find((o) => o.id === memoryId)?.sourceIds[0]
+        : memoryId;
+    if (factId === undefined) return [];
     return this.edges
       .filter((e) => e.to === factId && (e.type === "caused_by" || e.type === "causes"))
       .map((e) => this.factText(e.from));
   }
 
-  /** Forget a fact: its edges aren't deleted — their descriptors are archived. */
-  forgetFact(factId: number): void {
-    const kept: CausalEdge[] = [];
+  /** Forget a fact for real — and park its edges' descriptors on the archive. */
+  forgetFact(factId: number): void {    const kept: CausalEdge[] = [];
     for (const e of this.edges) {
       if (e.from === factId || e.to === factId) {
         this.archive.push({ ...e });
@@ -94,6 +104,23 @@ class CausalBank {
       } else kept.push(e);
     }
     this.edges = kept;
+    // The fact itself goes through lesson 15's invalidation cascade.
+    const mem = (this.engine as unknown as { mem: { forget(id: number): unknown } }).mem;
+    mem.forget(factId);
+    console.log(`  [forget] fact #${factId} invalidated`);
+  }
+
+  /** Forget by exact content — avoids recall's id-space ambiguity in demos. */
+  forgetFactByContent(content: string): void {
+    const mem = (
+      this.engine as unknown as { mem: { getFacts(): { id: number; content: string }[] } }
+    ).mem;
+    const f = mem.getFacts().find((x) => x.content === content);
+    if (!f) {
+      console.log(`  [forget] no live fact matches "${content.slice(0, 40)}"`);
+      return;
+    }
+    this.forgetFact(f.id);
   }
 }
 
@@ -104,12 +131,11 @@ async function demo(): Promise<void> {
 
   const [hit] = bank.engine.recall("deploy failed", 1);
   console.log(`\n"why did the deploy fail?"`);
-  const reasons = bank.why(hit.id);
+  const reasons = bank.why(hit.id, hit.kind);
   console.log(`  → ${reasons.join("; ") || "(no causal links)"}`);
 
-  console.log("\nforgetting the cause (fact with 'the deploy key expired'):");
-  const causeId = bank.engine.recall("deploy key expired", 1)[0]?.id;
-  if (causeId !== undefined) bank.forgetFact(causeId);
+  console.log("\nforgetting the cause:");
+  bank.forgetFactByContent("the deploy key expired.");
   console.log(`  archive holds ${bank.archive.length} edge descriptor(s)`);
 
   console.log("\nEntities say what's related. Causes say what *mattered*.");

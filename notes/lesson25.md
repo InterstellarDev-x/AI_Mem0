@@ -11,10 +11,11 @@ follow the caused_by links backward from an event to its reasons.
 `src/lesson25.ts`: `CausalBank` over lesson 13's Engine. The rules-path
 extractor watches for causal phrasing ("because", "led to", "caused") and
 emits typed edges (caused_by canonical; causes/enables/prevents legacy).
-`why(factId)` walks the edges backward. And because edges are *extraction
-output*, not derived data, forgetting doesn't delete them: the edge
-descriptor (from, to, type, weight) is parked on an archive so a revert can
-rematerialize it — exactly the real system's behavior.
+`why(memoryId, kind)` walks the edges backward — the kind travels with the
+id, same numeric-space split as lesson 24. Forgetting is real (lesson 15's
+invalidation cascade) *and* the edge descriptor (from, to, type, weight) is
+parked on an archive so a revert can rematerialize it — exactly the real
+system's behavior.
 
 ## Grounded in the real Hindsight
 

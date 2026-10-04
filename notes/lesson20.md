@@ -11,15 +11,18 @@ around them. Hindsight Cloud is this, hosted.
 ## What we built
 
 `src/lesson20.ts`: `ProductionMemory` over lesson 13's Engine.
-- **Durability** via a write-ahead log: every retain appends a JSON line;
-  `ProductionMemory.open()` replays the log on boot with original
-  timestamps. (Postgres is the real thing; the WAL is the idea.)
+- **Durability** via a write-ahead log: the intent is appended *before* the
+  engine applies it (a crash between the two replays the write instead of
+  losing it); `ProductionMemory.open()` replays the log on boot with original
+  timestamps, skipping a torn tail entry. (Postgres is the real thing; the
+  WAL is the idea.)
 - **Monitoring** via structured JSON log lines (`ts`, `severity`, `event`,
   latency) and a `health()` snapshot (status, uptime, facts, observations,
   subscriptions).
 - **Webhooks** via `on(event, url)` subscriptions with fire-and-forget POST
   delivery and logged delivery failures. Event names mirror Hindsight's:
-  `retain.completed`, `consolidation.completed`.
+  `retain.completed` fires per retain; `consolidation.completed` only when
+  the store actually changed.
 
 The demo: boot 1 retains twice (logs + 2 webhook deliveries to a local
 receiver), boot 2 "restarts" and replays the WAL — 2 facts, 2 observations

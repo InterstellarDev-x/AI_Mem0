@@ -30,22 +30,42 @@ type Depth = "chunk" | "document";
  * Expand a recalled memory back to its context.
  * depth "chunk": the hit plus its sibling chunks.
  * depth "document": the full source document.
- * Unknown ids — or ids from another bank — read as not found.
+ * The id may be a fact id or an observation id — recall returns both, from
+ * separate counters. Observation ids resolve through their sourceIds first;
+ * without that, an observation id silently lands in the wrong document.
+ * Unknown ids read as not found.
  */
-function expand(bank: DocBank, memoryId: number, depth: Depth): string {
+function expand(
+  bank: DocBank,
+  memoryId: number,
+  depth: Depth,
+  kind: "fact" | "observation" = "fact",
+): string {
   const docs = bank.getDocuments();
-  // Chunk text lives on the facts (ground truth); observations may merge or
-  // rewrite them, so expand resolves fact ids directly.
   const mem = (
     bank.engine as unknown as {
-      mem: { getFacts(): { id: number; content: string }[] };
+      mem: {
+        getFacts(): { id: number; content: string }[];
+        getObservations(): { id: number; sourceIds: number[] }[];
+      };
     }
   ).mem;
   const textOf = (id: number): string =>
     mem.getFacts().find((f) => f.id === id)?.content ?? `(chunk ${id}: not found)`;
-  for (const doc of docs) {
-    const idx = doc.chunkIds.indexOf(memoryId);
-    if (idx === -1) continue;
+  // Fact ids and observation ids share one numeric space but are separate
+  // counters — the kind must travel with the id, or #1 means two things.
+  let factId: number | undefined;
+  if (kind === "observation") {
+    factId = mem.getObservations().find((o) => o.id === memoryId)?.sourceIds[0];
+  } else {
+    factId = memoryId;
+  }
+  if (factId === undefined) return `(memory #${memoryId}: not found — outside this bank)`;
+  const docIdx = docs.findIndex((d) => d.chunkIds.includes(factId));
+  if (docIdx === -1) return `(memory #${memoryId}: not found — outside this bank)`;
+  const doc = docs[docIdx];
+  {
+    const idx = doc.chunkIds.indexOf(factId);
     const texts = doc.chunkIds.map(textOf);
     if (depth === "document") {
       return `document "${doc.title}":\n` + texts.map((t) => `  ${t}`).join("\n");
@@ -55,6 +75,7 @@ function expand(bank: DocBank, memoryId: number, depth: Depth): string {
     return `chunk context for memory #${memoryId}:\n` +
       texts.slice(lo, hi).map((t, i) => `${lo + i === idx ? "▶ " : "  "}${t}`).join("\n");
   }
+  // unreachable: docIdx === -1 returns above
   return `(memory #${memoryId}: not found — outside this bank)`;
 }
 
@@ -69,11 +90,18 @@ The prod deploy key lives in 1Password under 'prod-deploy'.
 The on-call rotation starts Monday and changes weekly.`,
   );
 
-  const [hit] = bank.engine.recall("deploy key", 1);
-  console.log(`recall("deploy key") → #${hit.id}: ${hit.text}\n`);
+  await bank.ingestDocument(
+    "Field Notes",
+    `Xylophone music soothes cats.
 
-  console.log(expand(bank, hit.id, "chunk"));
-  console.log("\n" + expand(bank, hit.id, "document"));
+Quantum apples taste purple.`,
+  );
+
+  const [hit] = bank.engine.recall("xylophone music", 1);
+  console.log(`recall("xylophone music") → ${hit.kind} #${hit.id}: ${hit.text}\n`);
+
+  console.log(expand(bank, hit.id, "chunk", hit.kind));
+  console.log("\n" + expand(bank, hit.id, "document", hit.kind));
 
   console.log("\n" + expand(bank, 999, "chunk"));
 

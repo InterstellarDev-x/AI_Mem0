@@ -51,8 +51,16 @@ class ProductionMemory {
       let n = 0;
       for (const line of readFileSync(walPath, "utf8").split("\n")) {
         if (!line.trim()) continue;
-        const { content, at } = JSON.parse(line);
-        await pm.engine.retain(content, new Date(at));
+        let entry: { content: string; at: string };
+        try {
+          entry = JSON.parse(line);
+        } catch {
+          // Torn tail: a crash mid-append leaves a partial last line. A
+          // production WAL skips the corrupt tail entry and recovers.
+          pm.log("wal.torn_tail_skipped", { path: walPath, entriesRecovered: n });
+          break;
+        }
+        await pm.engine.retain(entry.content, new Date(entry.at));
         n++;
       }
       pm.replaying = false;
@@ -86,14 +94,29 @@ class ProductionMemory {
 
   async retain(content: string, at: Date = new Date()): Promise<void> {
     const t0 = Date.now();
-    await this.engine.retain(content, at);
+    // Write-AHEAD: the intent hits the log before the engine applies it, so a
+    // crash between the two replays the write instead of losing it.
     if (!this.replaying) {
-      // write-ahead log: the durability story
       appendFileSync(this.walPath, JSON.stringify({ content, at: at.toISOString() }) + "\n");
     }
+    const before = this.counts();
+    await this.engine.retain(content, at);
+    const after = this.counts();
     this.log("retain.completed", { content: content.slice(0, 60), latencyMs: Date.now() - t0 });
     this.emit("retain.completed", { content: content.slice(0, 60) });
-    this.emit("consolidation.completed", {});
+    if (after.facts !== before.facts || after.observations !== before.observations) {
+      this.emit("consolidation.completed", {
+        facts: after.facts,
+        observations: after.observations,
+      });
+    }
+  }
+
+  private counts(): { facts: number; observations: number } {
+    const inner = (this.engine as unknown as {
+      mem: { getFacts(): unknown[]; getObservations(): unknown[] };
+    }).mem;
+    return { facts: inner.getFacts().length, observations: inner.getObservations().length };
   }
 
   recall(query: string, k: number = 5) {

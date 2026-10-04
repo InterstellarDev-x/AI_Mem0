@@ -10,12 +10,13 @@ into the store — is stopped at the door, not cleaned up later.
 ## What we built
 
 `src/lesson26.ts`: `DefendedBank` over lesson 13's Engine. Policy is a list
-of {on, action} rules; detectors are sensitive_data (SSN / card / API-key
-patterns) and prompt_injection (the classic override phrasings). The screen
-runs before retain; redactions are marked ([REDACTED:SSN]) so the bank never
-pretends it saw the original; blocked items never enter. Demo: a smuggled
-secret is stored redacted, an injection attempt is blocked outright, and
-recall proves the attack was never stored.
+of {on, action} rules; detectors are sensitive_data (SSN / spaced or
+contiguous card numbers / API keys with a lookbehind so `task-123` doesn't
+false-positive) and prompt_injection (the classic override phrasings). The
+screen runs before retain; redactions are marked ([REDACTED:SSN]) so the
+bank never pretends it saw the original; blocked items never enter. Demo: a
+smuggled secret is stored redacted, an injection attempt is blocked
+outright, and recall proves the attack was never stored.
 
 ## Grounded in the real Hindsight
 

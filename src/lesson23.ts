@@ -45,11 +45,14 @@ export class DocBank {
       .filter((c) => c.length > 0);
     const doc: Doc = { id: this.docs.length, title, chunkIds: [] };
     this.docs.push(doc);
+    let stored = 0;
     for (let i = 0; i < chunks.length; i++) {
       const ids = await this.engine.retain(`[${title} §${i + 1}/${chunks.length}] ${chunks[i]}`);
       doc.chunkIds.push(...ids);
+      stored += ids.length;
     }
-    console.log(`  [ingest] "${title}": ${chunks.length} chunks → doc #${doc.id}`);
+    // ids.length can be 0 per chunk: the dedupe set drops re-ingested text.
+    console.log(`  [ingest] "${title}": ${chunks.length} chunks, ${stored} new facts → doc #${doc.id}`);
   }
 
   /** The knowledge-base tree: documents and their chunk counts. */
@@ -64,10 +67,15 @@ export class DocBank {
   chunksOf(docId: number): string[] {
     const doc = this.docs[docId];
     if (!doc) throw new Error(`unknown document #${docId}`);
-    return doc.chunkIds.map((id) => {
-      const hit = this.engine.recall("", 1000).find((h) => h.id === id);
-      return hit ? hit.text : `(chunk ${id} absorbed)`;
-    });
+    // Resolve fact ids directly: an empty recall query scores nothing, so
+    // recall can never serve as the lookup here.
+    const mem = (
+      this.engine as unknown as { mem: { getFacts(): { id: number; content: string }[] } }
+    ).mem;
+    const facts = mem.getFacts();
+    return doc.chunkIds.map(
+      (id) => facts.find((f) => f.id === id)?.content ?? `(chunk ${id}: forgotten)`,
+    );
   }
 }
 

@@ -9,12 +9,15 @@ isn't enough to reason with.
 
 ## What we built
 
-`src/lesson24.ts`: `expand(bank, memoryId, depth)` over lesson 23's DocBank.
-Chunk depth shows the hit with its siblings (▶ marks the hit); document
-depth returns the full source. Unknown ids — or ids from another bank —
-read as not found, mirroring the real tool's guard: a shared fact never
-opens the rest of a document the reader can't see. Chunk text resolves from
-facts (ground truth), not observations, which may merge or rewrite them.
+`src/lesson24.ts`: `expand(bank, memoryId, depth, kind)` over lesson 23's
+DocBank. Chunk depth shows the hit with its siblings (▶ marks the hit);
+document depth returns the full source. Fact ids and observation ids share
+one numeric space but are separate counters, so the hit's *kind* travels
+with the id — without it, an observation id silently expands the wrong
+document. Unknown ids read as not found, mirroring the real tool's guard:
+a shared fact never opens the rest of a document the reader can't see.
+Chunk text resolves from facts (ground truth), not observations, which may
+merge or rewrite them.
 
 ## Grounded in the real Hindsight
 
