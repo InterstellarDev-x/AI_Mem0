@@ -9,7 +9,7 @@
 //
 // Ranks are always comparable. A document ranked #1 by both arms outscores
 // one ranked #1 by a single arm; a document liked by both arms beats one
-// loved by one and ignored by the other. k = 60 (Hindsight's default)
+// ranked high by one arm and low by the other. k = 60 (Hindsight's default)
 // dampens the gap between close ranks, so fusion is robust, not twitchy.
 //
 // Grounded in the real Hindsight (engine/search/fusion.py): RRF over the
@@ -218,9 +218,9 @@ async function demo(): Promise<void> {
     "fact, BM25's #2 is the hiking fact. Fusion ranks the engineer fact",
   );
   console.log(
-    "higher — liked by *both* arms (#2 and #3) — over hiking, loved by one",
+    "higher — liked by *both* arms (#2 and #3) — over hiking, ranked #2 by",
   );
-  console.log("and ignored by the other. Consensus wins. That is hybrid retrieval.");
+  console.log("one arm but only #5 by the other. Consensus wins. That is hybrid retrieval.");
 }
 
 await demo();

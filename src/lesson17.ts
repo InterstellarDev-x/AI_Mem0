@@ -117,8 +117,11 @@ async function demo(): Promise<void> {
         (await client.chat.completions.create({ model: CHAT_MODEL, messages })).choices[0]
           ?.message.content ?? ""
     : async (messages) => {
-        const sys = messages.find((m) => m.role === "system")?.content ?? "(none)";
-        return `(stub) saw ${messages.length} messages; system prompt: "${sys.slice(0, 90)}…"`;
+        // Reports what was sent WITHOUT echoing it: echoing the injected
+        // memory block would retain the bank's own output as new facts.
+        const sys = messages.find((m) => m.role === "system")?.content;
+        const injected = sys?.includes("[Relevant memories]") ?? false;
+        return `(stub) saw ${messages.length} messages${injected ? " (memories injected)" : " (no memories)"}`;
       };
 
   console.log("WITHOUT the wrapper — the model sees only raw messages:");

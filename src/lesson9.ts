@@ -67,7 +67,9 @@ function canonEntity(e: string): string {
 }
 
 function canonFactText(t: string): string {
-  return t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.]+$/, "");
+  // Strip all trailing sentence punctuation: "Google." / "Google!" / "Google?"
+  // are the same fact. ("One fact, one place.")
+  return t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
 }
 
 interface Extractor {

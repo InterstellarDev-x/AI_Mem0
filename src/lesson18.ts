@@ -3,7 +3,7 @@
 // The one idea: the same memory engine, served over HTTP as *tools* any
 // agent can call. Two modes, exactly like Hindsight:
 //   - multi-bank  POST /mcp            → retain, recall, reflect, list_banks, create_bank
-//                                        (bank_id comes from the call arguments)
+//                                        (bank_id: call arguments → X-Bank-Id header → env, like the real order)
 //   - single-bank POST /mcp/{bank_id}  → retain, recall, reflect only
 //                                        (bank comes from the URL — recommended
 //                                        for agent isolation)
@@ -137,8 +137,14 @@ function startServer(): { url: string; stop: () => void } {
         const args = body.params?.arguments ?? {};
         const tool = toolsFor(singleBank).find((t) => t.name === name);
         if (!tool) return rpcErr(body.id, -32601, `unknown tool "${name}" on this endpoint`);
-        const bankId = singleBank ? pathBank! : args.bank_id;
-        if (!bankId) return rpcErr(body.id, -32602, "bank_id is required in multi-bank mode");
+        // Bank-id resolution, per the real order: URL → X-Bank-Id header →
+        // HINDSIGHT_MCP_BANK_ID env (default "default") → call arguments.
+        const bankId = singleBank
+          ? pathBank!
+          : (args.bank_id ??
+            req.headers.get("x-bank-id") ??
+            process.env.HINDSIGHT_MCP_BANK_ID ??
+            "default");
         try {
           const out = await tool.run(args, bankId);
           return rpcOk(body.id, { content: [{ type: "text", text: JSON.stringify(out) }] });
@@ -153,10 +159,10 @@ function startServer(): { url: string; stop: () => void } {
 }
 
 // ---- demo: drive the server over the wire ----
-async function call(url: string, method: string, params?: unknown): Promise<any> {
+async function call(url: string, method: string, params?: unknown, headers: Record<string, string> = {}): Promise<any> {
   const res = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
   const body = await res.json();
@@ -185,6 +191,9 @@ async function demo(): Promise<void> {
 
   console.log("\nrecall 'deploy key' from bank 'work' (multi-bank):");
   console.log(" ", toolText(await call(multi, "tools/call", { name: "recall", arguments: { query: "deploy key", bank_id: "work" } })));
+
+  console.log("\nrecall 'deploy key' via X-Bank-Id header (no bank_id in args):");
+  console.log(" ", toolText(await call(multi, "tools/call", { name: "recall", arguments: { query: "deploy key" } }, { "x-bank-id": "work" })));
 
   console.log("\nrecall 'deploy key' from bank 'personal' (multi-bank):");
   console.log(" ", toolText(await call(multi, "tools/call", { name: "recall", arguments: { query: "deploy key", bank_id: "personal" } })));

@@ -94,10 +94,11 @@ class ReflectAgent {
 
   // ---- tools (all read-only, like Hindsight's reflect tools) ----
   private searchMentalModels(q: string): string[] {
-    const qt = new Set(q.toLowerCase().split(/\W+/).filter((w) => w.length > 3));
+    // length > 2, consistent with the engine tokenizer — "Bob" must match "Bob"
+    const qt = new Set(q.toLowerCase().split(/\W+/).filter((w) => w.length > 2));
     return this.notes
       .filter((n) =>
-        n.question.toLowerCase().split(/\W+/).some((w) => w.length > 3 && qt.has(w)),
+        n.question.toLowerCase().split(/\W+/).some((w) => w.length > 2 && qt.has(w)),
       )
       .map((n) => `Q: ${n.question} A: ${n.answer}`);
   }
@@ -205,7 +206,9 @@ class ReflectAgent {
       const r = this.runTool(step.tool, step.query ?? question);
       seen.push(`${step.tool}("${step.query}") → ${r.map((x) => `"${x.slice(0, 80)}"`).join("; ") || "no hits"}`);
       console.log(`  iter ${i + 1}: ${step.tool}("${step.query}") → ${r.length} hit(s)`);
-      if (i === maxIterations - 1) answer = "(max iterations — forcing an answer from gathered evidence)";
+      // Last iteration without done: break with answer unset so the forced
+      // synthesis below runs (assigning a placeholder here would make
+      // `if (!answer)` dead code and the user would get the placeholder).
     }
     if (!answer) {
       // forced synthesis from the trace

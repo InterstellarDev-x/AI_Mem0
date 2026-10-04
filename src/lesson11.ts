@@ -69,7 +69,7 @@ function ruleEntities(text: string): string[] {
 const canonEntity = (e: string): string =>
   e.toLowerCase().replace(/'s$/, "").replace(/\s+/g, " ").trim();
 const canonText = (t: string): string =>
-  t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.]+$/, "");
+  t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.!?]+$/, ""); // "Google." == "Google!" — one fact, one place
 
 let openai: OpenAI | null = null;
 function llm(): OpenAI | null {
@@ -162,6 +162,7 @@ export class Memory {
   private facts: Fact[] = [];
   private observations: Observation[] = [];
   private invalidated: Fact[] = []; // like Hindsight's invalidated_memory_units — the row stops existing, but the record remains
+  private nextId = 0; // monotonic: forget() splices rows, so facts.length would collide
 
   /** Read access for upper layers (e.g. lesson 12's reflect). */
   getFacts(): Fact[] {
@@ -195,22 +196,25 @@ export class Memory {
     const swept: number[] = [];
     const weakened = new Set<number>();
     for (const o of this.observations) {
+      let touched = false;
       const si = o.sourceIds.indexOf(id);
       if (si !== -1) {
         o.sourceIds.splice(si, 1);
         o.quotes.splice(si, 1); // quotes and sourceIds are parallel arrays
         o.proofCount = o.sourceIds.length;
         weakened.add(o.id);
+        touched = true;
       }
       const ci = o.counterIds.indexOf(id);
       if (ci !== -1) {
         o.counterIds.splice(ci, 1);
         o.counterQuotes.splice(ci, 1);
         weakened.add(o.id);
+        touched = true;
       }
       if (o.sourceIds.length === 0 && o.counterIds.length === 0) {
         swept.push(o.id);
-      } else {
+      } else if (touched) {
         o.rev += 1; // the belief changed
       }
     }
@@ -226,7 +230,7 @@ export class Memory {
       const entities = [...new Set(ruleEntities(piece).map(canonEntity))].filter(
         (e) => e.length > 1,
       );
-      this.facts.push({ id: this.facts.length, content: piece, at, entities, consolidated: false });
+      this.facts.push({ id: this.nextId++, content: piece, at, entities, consolidated: false });
     }
   }
 
@@ -275,8 +279,8 @@ export class Memory {
   /**
    * Refinement: judge each new fact against the belief, then apply.
    * supports/extends → proofCount up, quote kept. contradicts → history
-   * snapshot, counter-quote kept, belief revised. unrelated → left for a
-   * future CREATE (out of scope for this demo's groups).
+   * snapshot, counter-quote kept, belief revised. unrelated → its own
+   * observation (a new scope), so it isn't re-judged forever.
    */
   private async refine(obs: Observation, group: Fact[]): Promise<Set<number>> {
     const handled = new Set<number>();
@@ -304,7 +308,21 @@ export class Memory {
         console.log(`  WEAKEN obs #${obs.id}: fact #${id} contradicts`);
         console.log(`    counter-quote kept: "${f.content}"`);
       } else if (verdict === "unrelated") {
-        console.log(`  (fact #${id} unrelated — left unconsolidated for its own scope)`);
+        // Not a refinement of this belief — it gets its own observation with
+        // a distinct scope. Otherwise every future consolidate() would group
+        // it under the same scope and re-judge it "unrelated" forever.
+        const utext = await writeObservation([f]);
+        const nid = this.observations.length;
+        this.observations.push({
+          id: nid, text: utext,
+          sourceIds: [f.id], quotes: [f.content], proofCount: 1,
+          counterQuotes: [], counterIds: [], history: [],
+          rev: 1,
+          entities: [...f.entities],
+          scope: `${obs.scope}#${f.id}`,
+        });
+        handled.add(id);
+        console.log(`  CREATE obs #${nid} for unrelated fact #${id} (split from obs #${obs.id})`);
       } else {
         // supports | extends — the belief stands, more firmly, or broader
         obs.sourceIds.push(f.id);

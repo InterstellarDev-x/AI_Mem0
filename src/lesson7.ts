@@ -189,7 +189,7 @@ class Memory {
     query: string,
     k = 3,
     ref: Date = new Date(),
-  ): Promise<{ fact: Fact; score: number; window: TemporalWindow | null }> {
+  ): Promise<{ fact: Fact; score: number; window: TemporalWindow | null }[]> {
     const window = extractWindow(query, ref);
 
     const qv = await embed(query);

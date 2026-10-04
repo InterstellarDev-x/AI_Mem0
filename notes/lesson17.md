@@ -51,3 +51,12 @@ OPENAI_API_KEY=... bun run lesson17   # a real model answers from memory
 Ask the wrapped chat "Where does Alice work?" keyed, then ask it "What did
 I just ask you?" — the second answer comes from the retained exchange, not
 from the original facts. Memory of the conversation itself.
+
+## A known sharp edge
+
+The wrapper retains `User: … / Assistant: …` as ordinary facts — nothing
+marks them as *derivatives* of the injected memories. Keyed, an assistant
+answer built from memories becomes competing facts with no provenance; the
+keyless stub deliberately reports without echoing the memory block, because
+echoing it retained the bank's own output as new facts. Provenance tracking
+for conversation records is a real gap the demo doesn't close.

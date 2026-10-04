@@ -121,12 +121,7 @@ export class Engine {
       .filter((h) => h.score > 0)
       .sort((a, b) => b.score - a.score);
 
-    // prefer_observations: a returned observation absorbs its source facts
-    const absorbed = new Set<number>();
-    for (const h of hits) if (h.kind === "observation") for (const s of h.sourceIds) absorbed.add(s);
-    hits = hits.filter((h) => h.kind === "observation" || !absorbed.has(h.id));
-
-    // budget
+    // budget: top-k, then a character cap
     const out: Hit[] = [];
     let chars = 0;
     for (const h of hits.slice(0, k)) {
@@ -134,7 +129,13 @@ export class Engine {
       out.push(h);
       chars += h.text.length;
     }
-    return out;
+
+    // prefer_observations: a RETURNED observation absorbs its source facts.
+    // (Absorbing from pre-slice hits would let an unreturned observation
+    // hide facts the caller never sees — neither the fact nor the belief.)
+    const absorbed = new Set<number>();
+    for (const h of out) if (h.kind === "observation") for (const s of h.sourceIds) absorbed.add(s);
+    return out.filter((h) => h.kind === "observation" || !absorbed.has(h.id));
   }
 
   /**
